@@ -1,4 +1,5 @@
 import os
+import torch
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -21,16 +22,31 @@ def initialize_rag_pipeline(pdf_path):
     print(f" Created {len(final_documents)} text chunks.")
 
     print(" Step 3 & 4: Generating embeddings and creating FAISS index...")
-    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+
+    # Dynamically select the best hardware accelerator to prevent Mac freezing
+    if torch.backends.mps.is_available():
+        device = "mps"
+    elif torch.cuda.is_available():
+        device = "cuda"
+    else:
+        device = "cpu"
+    print(f" Using hardware accelerator: {device.upper()}")
+
+    # Pass the hardware device to the Hugging Face embedding pipeline
+    embeddings = HuggingFaceEmbeddings(
+        model_name="all-MiniLM-L6-v2",
+        model_kwargs={"device": device},
+        encode_kwargs = {"device": device, "normalize_embeddings": True}
+    )
     vector_store = FAISS.from_documents(final_documents, embeddings)
 
     # Retrieve top 5 highly relevant text chunks or can be adjusted
     retriever = vector_store.as_retriever(search_kwargs={"k": 5})
     print(" FAISS index created successfully.")
 
-    print(" Step 5: Connecting to Google AI Studio (Gemini 1.5 Flash)...")
+    print(" Step 5: Connecting to Google AI Studio (Gemini 2.5 Flash)...")
 
-    #Replace your API key
+    # Fetch API key safely from environment variables
     api_key = os.getenv("GOOGLE_API_KEY", "GOOGLE_API_KEY")
 
     # Initialize the Gemini model
@@ -61,15 +77,3 @@ def initialize_rag_pipeline(pdf_path):
     )
 
     return rag_chain
-
-
-if __name__ == "__main__":
-    sample_pdf = "sample_financial_report.pdf"
-    if os.path.exists(sample_pdf):
-        chain = initialize_rag_pipeline(sample_pdf)
-        query = "Can you give me a quick summary of the report under 50 words?"
-        print(f"\n User asks: {query}")
-        response = chain.invoke(query)
-        print(f"\n Bot Answer:\n{response}")
-    else:
-        print(f"\n Please place a sample PDF named '{sample_pdf}' in this directory to run a test.")
