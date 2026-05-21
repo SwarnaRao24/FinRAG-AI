@@ -41,7 +41,7 @@ Follow these steps to configure the application environment on your local machin
 
 ### 1. Clone the Repository
 ```bash
-git clone [https://github.com/SwarnaRao24/FinRAG-AI.git](https://github.com/SwarnaRao24/FinRAG-AI.git)
+git clone https://github.com/SwarnaRao24/FinRAG-AI.git
 cd FinRAG-A
 ```
 ---
